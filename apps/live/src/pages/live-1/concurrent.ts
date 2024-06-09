@@ -27,7 +27,8 @@ async function concurrent<T>(limit: number, fs: (() => Promise<T>)[]) {
     const temp: Promise<T>[] = [];
     for (let j = 0; j < limit; j++) {
       const f = fs[i * limit + j];
-      temp.push(f());
+
+      if (f) temp.push(f());
     }
 
     result.push(await Promise.all(temp));
@@ -53,11 +54,12 @@ export async function main(): Promise<void> {
 
   const files: File[][] = await concurrent(3, [
     () => getFile('file1.png'),
-    () => getFile('file1.jepg'),
-    () => getFile('file1.webp'),
-    () => getFile('file1.ppt'),
-    () => getFile('file1.ppt'),
-    () => getFile('file1.ppt'),
+    () => getFile('file2.jepg'),
+    () => getFile('file3.webp'),
+    () => getFile('file4.ppt'),
+    () => getFile('file5.ppt'),
+    () => getFile('file6.ppt'),
+    () => getFile('file7.ppt'),
   ]);
 
   console.timeEnd();
