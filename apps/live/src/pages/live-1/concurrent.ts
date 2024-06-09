@@ -17,9 +17,23 @@ function getFile(name: string) {
 //   await Promise.all([ps[0], ps[1], ps[2]]);
 //   await Promise.all([ps[3], ps[4], ps[5]]);
 // }
-async function concurrent(limit, ps) {
-  await Promise.all([ps[0](), ps[1](), ps[2]()]);
-  await Promise.all([ps[3](), ps[4](), ps[5]()]);
+
+// 명령형으로 작성
+// 타입 맞추기가 힘들고 바쁘다.
+async function concurrent<T>(limit: number, fs: (() => Promise<T>)[]) {
+  const result: T[][] = [];
+
+  for (let i = 0; i < fs.length / limit; i++) {
+    const temp: Promise<T>[] = [];
+    for (let j = 0; j < limit; j++) {
+      const f = fs[i * limit + j];
+      temp.push(f());
+    }
+
+    result.push(await Promise.all(temp));
+  }
+
+  return result;
 }
 
 export async function main(): Promise<void> {
@@ -37,7 +51,7 @@ export async function main(): Promise<void> {
   //   getFile('file1.ppt'),
   // ]);
 
-  const files = await concurrent(3, [
+  const files: File[][] = await concurrent(3, [
     () => getFile('file1.png'),
     () => getFile('file1.jepg'),
     () => getFile('file1.webp'),
@@ -48,5 +62,7 @@ export async function main(): Promise<void> {
 
   console.timeEnd();
 
-  console.log(files);
+  // flat을 사용하는케이스에 추가
+  // 케이스는 많겠지만 동시성관리하면서 이차원배열을 일차원 배열로 만들어줄때
+  console.log(files.flat());
 }
