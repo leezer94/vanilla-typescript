@@ -9,28 +9,44 @@ interface File {
 }
 
 function getFile(name: string) {
-  return delay(3000, { name, body: '....', size: 100 });
+  return delay(1000, { name, body: '....', size: 100 });
+}
+
+// 비교대상 이전
+// async function concurrent(limit, ps) {
+//   await Promise.all([ps[0], ps[1], ps[2]]);
+//   await Promise.all([ps[3], ps[4], ps[5]]);
+// }
+async function concurrent(limit, ps) {
+  await Promise.all([ps[0](), ps[1](), ps[2]()]);
+  await Promise.all([ps[3](), ps[4](), ps[5]()]);
 }
 
 export async function main(): Promise<void> {
-  const file = getFile('file.png');
-  const result = await Promise.race([file, delay(2000, 'timeout')]);
+  // 부하를 줄이고 싶을때
 
-  // 늦은 응답에 대한 skeleton ui  / spinner ui 에 응용가능
+  console.time();
 
-  if (result === 'timeout') {
-    console.log('로딩 / 스켈레톤');
+  // 비교 대상 (이전)
+  // const files = await concurrent(3, [
+  //   getFile('file1.png'),
+  //   getFile('file1.jepg'),
+  //   getFile('file1.webp'),
+  //   getFile('file1.ppt'),
+  //   getFile('file1.ppt'),
+  //   getFile('file1.ppt'),
+  // ]);
 
-    console.log(await file);
-  } else {
-    console.log('즉시 렌더링 ', result);
-  }
+  const files = await concurrent(3, [
+    () => getFile('file1.png'),
+    () => getFile('file1.jepg'),
+    () => getFile('file1.webp'),
+    () => getFile('file1.ppt'),
+    () => getFile('file1.ppt'),
+    () => getFile('file1.ppt'),
+  ]);
 
-  // 혹은 응답이 너무 늦을경우 사용자의 네트워크 등등 확인
+  console.timeEnd();
 
-  if (result === 'timeout') {
-    console.log('네트워크 환경을 확인해주세요.');
-  } else {
-    console.log(result);
-  }
+  console.log(files);
 }
