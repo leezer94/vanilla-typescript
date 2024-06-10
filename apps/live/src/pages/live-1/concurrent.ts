@@ -108,6 +108,37 @@ async function concurrent2<T>(limit: number, fs: (() => Promise<T>)[]) {
   return result.flat();
 }
 
+class FxIterator<T> {
+  constructor(public iterable: Iterable<T>) {}
+
+  chunk(size) {
+    return fx(chunk(size, this.iterable));
+  }
+
+  map<U>(f: (a: T) => U): FxIterator<U> {
+    return fx(map(f, this.iterable));
+  }
+
+  to<U>(f: (iterable: Iterable<T>) => U): U {
+    return f(this.iterable);
+  }
+}
+
+function fx<T>(iterable: Iterable<T>) {
+  return new FxIterator(iterable);
+}
+
+async function concurrent3<T>(limit: number, fs: (() => Promise<T>)[]) {
+  const result = await fx(fs)
+    .chunk(limit)
+    .map((fs) => fs.map((f) => f()))
+    .map((ps) => Promise.all(ps))
+    .to(fromAsync)
+    .then((arr) => arr.flat());
+
+  return result;
+}
+
 export async function main(): Promise<void> {
   // 부하를 줄이고 싶을때
 
@@ -136,13 +167,13 @@ export async function main(): Promise<void> {
   //   getFile('file1.ppt'),
   // ]);
 
-  const files = await concurrent2(3, [
+  const files = await concurrent3(3, [
     () => getFile('file1.png'),
     () => getFile('file2.jpeg'),
     () => getFile('file3.webp'),
     () => getFile('file4.ppt'),
-    () => getFile('file5.ppt'),
-    () => getFile('file6.ppt'),
+    () => getFile('file5.png'),
+    () => getFile('file6.png'),
     () => getFile('file7.ppt'),
   ]);
 
@@ -150,6 +181,19 @@ export async function main(): Promise<void> {
   // console.log(await files.next().value, 'files2');
 
   console.log(files, 'files');
+
+  const totalSizes = files
+    .filter((file) => file.name.endsWith('.png'))
+    .reduce((size, file) => size + file.size, 0);
+
+  console.log(totalSizes, 'totalSizes');
+
+  const elegantTotalSizes = files
+    .filter((file) => file.name.endsWith('.png'))
+    .map(({ size }) => size)
+    .reduce((sizeA: number, sizeB: number) => sizeA + sizeB, 0);
+
+  console.log(elegantTotalSizes, 'elegantTotalSizes');
 
   console.timeEnd();
 
