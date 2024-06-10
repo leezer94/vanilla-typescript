@@ -78,12 +78,34 @@ function* chunk<T>(size: number, iterable: Iterable<T>) {
   }
 }
 
-// function* map<A, B>(f: (a: A) => B, iterable: Iterable<A>): IterableIterator<B> {}
-
-function concurrent2<T>(limit: number, fs: (() => Promise<T>)[]) {
-  for (const fs2 of chunk(limit, fs)) {
-    console.log(fs2.map((f) => f()));
+function* map<A, B>(f: (a: A) => B, iterable: Iterable<A>): IterableIterator<B> {
+  for (const a of iterable) {
+    yield f(a);
   }
+}
+
+// mock of Array.fromAsync()
+async function fromAsync<T>(iterable: Iterable<Promise<T>>) {
+  const arr: Awaited<T>[] = [];
+
+  for await (const a of iterable) {
+    arr.push(a);
+  }
+
+  return arr;
+}
+
+// 외부에서 지연적으로 호출을 지연한다.
+async function concurrent2<T>(limit: number, fs: (() => Promise<T>)[]) {
+  // chunk 의 결과값을 하나씩 실행한다.
+  const result = await fromAsync(
+    map(
+      (ps) => Promise.all(ps),
+      map((fs) => fs.map((f) => f()), chunk(limit, fs)),
+    ),
+  );
+
+  return result.flat();
 }
 
 export async function main(): Promise<void> {
@@ -91,10 +113,10 @@ export async function main(): Promise<void> {
 
   console.time();
 
-  const iterator = chunk(3, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  // const iterator = chunk(3, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
-  console.log(iterator.next());
-  console.log(iterator.next());
+  // console.log(iterator.next());
+  // console.log(iterator.next());
 
   // [...chunk(3, [1, 2, 3, 4, 5, 6])];
   //[[1,2,3,],[4,5,6]]
@@ -116,13 +138,16 @@ export async function main(): Promise<void> {
 
   const files = await concurrent2(3, [
     () => getFile('file1.png'),
-    () => getFile('file2.jepg'),
+    () => getFile('file2.jpeg'),
     () => getFile('file3.webp'),
     () => getFile('file4.ppt'),
     () => getFile('file5.ppt'),
     () => getFile('file6.ppt'),
     () => getFile('file7.ppt'),
   ]);
+
+  // console.log(await files.next().value, 'files1');
+  // console.log(await files.next().value, 'files2');
 
   console.log(files, 'files');
 
