@@ -52,17 +52,57 @@ function* take<T>(length: number, iterable: Iterable<T>) {
   }
 }
 
-async function concurrent2<T>(limit: number, fs: (() => Promise<T>)[]) {}
+function* chunk<T>(size: number, iterable: Iterable<T>) {
+  const iterator = iterable[Symbol.iterator]();
 
-export function main(): void {
+  // iterator 에서는 무한루프도 호출한 만큼만 실행하기 때문에 브라우저가 잘 죽지 않는다.
+  while (true) {
+    // iterator 가 확실한지 모르기 떄문에 타입에러가 난다.
+    // const arr = [...take(size, iterator)];
+
+    // 인자가 iterator 가 확실하다는것을 명시적으로 알려주기 위해서
+    const arr = [
+      ...take(size, {
+        [Symbol.iterator]() {
+          return iterator;
+        },
+      }),
+    ];
+
+    if (arr.length) yield arr;
+
+    if (arr.length < size) break;
+
+    // 개발시에는 무한루프가 도는 상황이 생기더라도 기본 yielding 이 존재하기 때문에 안전하다.
+    // yield 'yield safely';
+  }
+}
+
+// function* map<A, B>(f: (a: A) => B, iterable: Iterable<A>): IterableIterator<B> {}
+
+function concurrent2<T>(limit: number, fs: (() => Promise<T>)[]) {
+  for (const fs2 of chunk(limit, fs)) {
+    console.log(fs2.map((f) => f()));
+  }
+}
+
+export async function main(): Promise<void> {
   // 부하를 줄이고 싶을때
 
   console.time();
 
-  const iteratorNum: number[] = [...take(8, [1, 2, 3, 4, 5, 6, 7])];
-  const iteratorStr: string[] = [...take(8, ['가', '나', '다', '라'])];
+  const iterator = chunk(3, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
-  console.log(iteratorNum, iteratorStr);
+  console.log(iterator.next());
+  console.log(iterator.next());
+
+  // [...chunk(3, [1, 2, 3, 4, 5, 6])];
+  //[[1,2,3,],[4,5,6]]
+
+  // const iteratorNum: number[] = [...take(8, [1, 2, 3, 4, 5, 6, 7])];
+  // const iteratorStr: string[] = [...take(8, ['가', '나', '다', '라'])];
+
+  // console.log(iteratorNum, iteratorStr);
 
   // 비교 대상 (이전)
   // const files = await concurrent(3, [
@@ -74,15 +114,17 @@ export function main(): void {
   //   getFile('file1.ppt'),
   // ]);
 
-  // const files: File[][] = await concurrent(3, [
-  //   () => getFile('file1.png'),
-  //   () => getFile('file2.jepg'),
-  //   () => getFile('file3.webp'),
-  //   () => getFile('file4.ppt'),
-  //   () => getFile('file5.ppt'),
-  //   () => getFile('file6.ppt'),
-  //   () => getFile('file7.ppt'),
-  // ]);
+  const files = await concurrent2(3, [
+    () => getFile('file1.png'),
+    () => getFile('file2.jepg'),
+    () => getFile('file3.webp'),
+    () => getFile('file4.ppt'),
+    () => getFile('file5.ppt'),
+    () => getFile('file6.ppt'),
+    () => getFile('file7.ppt'),
+  ]);
+
+  console.log(files, 'files');
 
   console.timeEnd();
 
