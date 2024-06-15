@@ -1,5 +1,6 @@
 import { html, Page } from 'rune-ts';
-import { main } from './html2.5';
+// import { main } from './html2.5';
+import { main } from './html';
 
 export class MplPage extends Page<object> {
   override template() {
